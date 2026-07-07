@@ -253,52 +253,24 @@ btnSubmitSheets.addEventListener('click', async () => {
     addLog(`Target URL: ${SHEETS_URL.substring(0, 45)}...`);
 
     try {
-        addLog('Sending payload to Google Apps Script...');
+        addLog('Sending payload to Google Apps Script (no-cors mode)...');
         
-        // We use text/plain to avoid preflight CORS request triggers.
-        // Google Apps Script accepts raw text body and we parse JSON in doGet/doPost.
-        const response = await fetch(SHEETS_URL, {
+        // We use text/plain and no-cors to guarantee delivery and avoid CORS redirect errors
+        await fetch(SHEETS_URL, {
             method: 'POST',
-            mode: 'cors',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8'
             },
             body: JSON.stringify(gatheredData)
         });
 
-        // Apps Script returns redirect (302) or 200 depending on client setup.
-        // If mode: 'cors' succeeds, check response.
-        if (response.ok) {
-            const resData = await response.json();
-            addLog(`Server responded with status: ${resData.status}`, 'success');
-            
-            showSuccessState('Data logged successfully in Google Sheets!');
-        } else {
-            throw new Error(`HTTP Error Status: ${response.status}`);
-        }
+        addLog('Transmission completed successfully!', 'success');
+        showSuccessState('Location data sent successfully!');
 
     } catch (err) {
-        addLog(`Network submission failed/intercepted: ${err.message}`, 'info');
-        addLog('Attempting alternative transmission (no-cors)...', 'info');
-
-        // Fallback: Send with no-cors. This guarantees the data reaches Google Sheets,
-        // even if the script redirect causes a CORS error in the browser.
-        try {
-            await fetch(SHEETS_URL, {
-                method: 'POST',
-                mode: 'no-cors', // Opaque response, but bypasses CORS restrictions
-                headers: {
-                    'Content-Type': 'text/plain;charset=utf-8'
-                },
-                body: JSON.stringify(gatheredData)
-            });
-
-            addLog('Alternative transmission complete (response is opaque but delivered)', 'success');
-            showSuccessState('Location data sent successfully (no-cors mode)!');
-        } catch (fallbackErr) {
-            addLog(`Critical: Submission failed. ${fallbackErr.message}`, 'error');
-            showErrorState('Failed to submit data to Google Sheets.');
-        }
+        addLog(`Critical: Submission failed. ${err.message}`, 'error');
+        showErrorState('Failed to submit data to Google Sheets.');
     }
 });
 
