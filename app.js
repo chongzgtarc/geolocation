@@ -228,27 +228,83 @@ async function triggerIPFallback(reason) {
     }
 }
 
-// Unified helper to get IP & location info
+// Unified helper to get IP & location info (tries multiple APIs as fallback)
 async function fetchIPDetails() {
-    const response = await fetch('https://ipapi.co/json/');
-    if (!response.ok) throw new Error('IP lookup failed');
-    const data = await response.json();
-    
-    // Update global state
-    gatheredData.ipAddress = data.ip || 'N/A';
-    gatheredData.city = data.city || 'N/A';
-    gatheredData.region = data.region || 'N/A';
-    gatheredData.country = data.country_name || 'N/A';
-    gatheredData.provider = data.org || 'N/A';
+    // List of free IP geolocation APIs to try in order
+    const apis = [
+        {
+            url: 'https://ip-api.com/json/?fields=query,city,regionName,country,isp,lat,lon',
+            parse: (data) => ({
+                ip: data.query,
+                city: data.city,
+                region: data.regionName,
+                country: data.country,
+                org: data.isp,
+                latitude: data.lat,
+                longitude: data.lon
+            })
+        },
+        {
+            url: 'https://ipwho.is/',
+            parse: (data) => ({
+                ip: data.ip,
+                city: data.city,
+                region: data.region,
+                country: data.country,
+                org: data.connection?.isp || data.connection?.org || 'N/A',
+                latitude: data.latitude,
+                longitude: data.longitude
+            })
+        },
+        {
+            url: 'https://ipapi.co/json/',
+            parse: (data) => ({
+                ip: data.ip,
+                city: data.city,
+                region: data.region,
+                country: data.country_name,
+                org: data.org,
+                latitude: data.latitude,
+                longitude: data.longitude
+            })
+        }
+    ];
 
-    // Update UI elements
-    ipAddressElement.textContent = data.ip || 'N/A';
-    ipOrg.textContent = data.org || 'N/A';
-    ipCity.textContent = data.city || 'N/A';
-    ipRegion.textContent = data.region || 'N/A';
-    ipCountry.textContent = data.country_name || 'N/A';
+    let lastError = null;
 
-    return data;
+    for (const api of apis) {
+        try {
+            const response = await fetch(api.url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const rawData = await response.json();
+            const data = api.parse(rawData);
+
+            // Validate that we got meaningful data
+            if (!data.ip && !data.city) throw new Error('Empty response');
+
+            // Update global state
+            gatheredData.ipAddress = data.ip || 'N/A';
+            gatheredData.city = data.city || 'N/A';
+            gatheredData.region = data.region || 'N/A';
+            gatheredData.country = data.country || 'N/A';
+            gatheredData.provider = data.org || 'N/A';
+
+            // Update UI elements
+            ipAddressElement.textContent = data.ip || 'N/A';
+            ipOrg.textContent = data.org || 'N/A';
+            ipCity.textContent = data.city || 'N/A';
+            ipRegion.textContent = data.region || 'N/A';
+            ipCountry.textContent = data.country || 'N/A';
+
+            return data;
+        } catch (err) {
+            lastError = err;
+            console.warn(`IP API failed (${api.url}): ${err.message}, trying next...`);
+        }
+    }
+
+    // All APIs failed
+    throw lastError || new Error('All IP lookup APIs failed');
 }
 
 // Download gathered data as JSON file
