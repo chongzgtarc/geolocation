@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compass | Test Location Collector</title>
+    <meta name="description" content="A simple and elegant web page to collect and log location data for testing purposes.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- Lucide Icons for premium look (via CDN) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="radial-bg"></div>
+    
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i data-lucide="compass" class="logo-icon"></i>
+                <span class="logo-text">Compass</span>
+            </div>
+            <p class="subtitle">Location Telemetry Tester for GitHub Pages</p>
+        </header>
+
+        <main>
+            <!-- Step 1: Input Name & Request Location -->
+            <section class="card" id="input-card">
+                <div class="card-header">
+                    <i data-lucide="user" class="card-icon"></i>
+                    <h2>Enter Tester Information</h2>
+                </div>
+                <p class="card-description">Please enter your name or a test identifier. This helps match the location data in Google Sheets.</p>
+                
+                <div class="form-group">
+                    <label for="tester-name">Tester Name / ID</label>
+                    <div class="input-wrapper">
+                        <i data-lucide="signature" class="input-icon"></i>
+                        <input type="text" id="tester-name" placeholder="e.g. John Doe, Test-01" required>
+                    </div>
+                </div>
+
+                <button id="btn-request-location" class="btn btn-primary">
+                    <span class="btn-text">Retrieve Location Data</span>
+                    <i data-lucide="map-pin" class="btn-icon"></i>
+                </button>
+            </section>
+
+            <!-- Loading State Card (Initially Hidden) -->
+            <section class="card hidden" id="loading-card">
+                <div class="loading-container">
+                    <div class="pulse-loader">
+                        <div class="double-bounce1"></div>
+                        <div class="double-bounce2"></div>
+                    </div>
+                    <h3 id="loading-status">Requesting GPS Geolocation...</h3>
+                    <p class="loading-subtext">Please allow location access in your browser when prompted.</p>
+                </div>
+            </section>
+
+            <!-- Results Card (Initially Hidden) -->
+            <section class="card hidden" id="result-card">
+                <div class="card-header success">
+                    <i data-lucide="check-circle" class="card-icon text-success"></i>
+                    <h2>Location Retrieved Successfully!</h2>
+                </div>
+                
+                <!-- Telemetry Grid -->
+                <div class="telemetry-grid">
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Latitude</span>
+                        <span class="telemetry-value" id="val-latitude">-</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Longitude</span>
+                        <span class="telemetry-value" id="val-longitude">-</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Accuracy</span>
+                        <span class="telemetry-value" id="val-accuracy">-</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Method</span>
+                        <span class="telemetry-value highlight" id="val-method">-</span>
+                    </div>
+                </div>
+
+                <!-- Fallback Info Row (Hidden by default, shown if IP lookup used) -->
+                <div class="fallback-info hidden" id="fallback-info">
+                    <div class="info-header">
+                        <i data-lucide="info" class="info-icon"></i>
+                        <h4>Approximate IP Location Details</h4>
+                    </div>
+                    <div class="info-grid">
+                        <div><strong>City:</strong> <span id="ip-city">N/A</span></div>
+                        <div><strong>Region:</strong> <span id="ip-region">N/A</span></div>
+                        <div><strong>Country:</strong> <span id="ip-country">N/A</span></div>
+                        <div><strong>Provider:</strong> <span id="ip-org">N/A</span></div>
+                    </div>
+                </div>
+
+                <!-- Interactive Map Link -->
+                <div class="map-preview" id="map-preview-container">
+                    <a id="map-link" href="#" target="_blank" rel="noopener noreferrer" class="map-btn">
+                        <i data-lucide="external-link"></i>
+                        <span>View exact position on OpenStreetMap</span>
+                    </a>
+                </div>
+
+                <div class="action-divider"></div>
+
+                <!-- Submission Controls -->
+                <div class="action-buttons">
+                    <button id="btn-submit-sheets" class="btn btn-success">
+                        <span>Send to Google Sheet</span>
+                        <i data-lucide="send"></i>
+                    </button>
+                    <button id="btn-download-json" class="btn btn-secondary">
+                        <span>Download JSON</span>
+                        <i data-lucide="download"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Status Logs Card (Initially Hidden) -->
+            <section class="card hidden" id="status-card">
+                <div class="status-header">
+                    <div class="spinner-small" id="submit-spinner"></div>
+                    <i data-lucide="check" class="success-icon hidden" id="submit-success-icon"></i>
+                    <i data-lucide="alert-triangle" class="error-icon hidden" id="submit-error-icon"></i>
+                    <h3 id="status-message">Submitting to Google Sheet...</h3>
+                </div>
+                <div class="console-log" id="console-log">
+                    <!-- Log entries will be populated here -->
+                </div>
+                <button id="btn-reset" class="btn btn-outline hidden">
+                    <span>Scan Again</span>
+                    <i data-lucide="rotate-ccw"></i>
+                </button>
+            </section>
+        </main>
+
+        <footer>
+            <p>Designed for testing geolocation static submissions. &copy; 2026</p>
+            <p class="footer-note"><i data-lucide="github" class="inline-icon"></i> Ready to be hosted on <code>github.io</code></p>
+        </footer>
+    </div>
+
+    <!-- Application Script -->
+    <script src="app.js"></script>
+</body>
+</html>
