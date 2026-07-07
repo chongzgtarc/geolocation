@@ -82,7 +82,7 @@ btnRequestLocation.addEventListener('click', () => {
     
     // Parse browser and OS details
     const uaInfo = getBrowserAndOS();
-    gatheredData.browser = uaInfo.browser;
+    gatheredData.browser = `${uaInfo.browser} ${uaInfo.os}`;
     gatheredData.os = uaInfo.os;
     gatheredData.userAgent = navigator.userAgent;
     
