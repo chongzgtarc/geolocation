@@ -336,13 +336,13 @@ function getBrowserAndOS() {
     else if (ua.indexOf("Linux") !== -1) os = "Linux";
 
     // Detect Browser
-    if (ua.indexOf("Firefox") !== -1) {
+    if (ua.indexOf("Firefox") !== -1 || ua.indexOf("FxiOS") !== -1) {
         browser = "Firefox";
-    } else if (ua.indexOf("Opera") !== -1 || ua.indexOf("OPR") !== -1) {
+    } else if (ua.indexOf("Opera") !== -1 || ua.indexOf("OPR") !== -1 || ua.indexOf("Opt") !== -1) {
         browser = "Opera";
-    } else if (ua.indexOf("Edge") !== -1 || ua.indexOf("Edg") !== -1) {
+    } else if (ua.indexOf("Edge") !== -1 || ua.indexOf("Edg") !== -1 || ua.indexOf("EdgiOS") !== -1) {
         browser = "Edge";
-    } else if (ua.indexOf("Chrome") !== -1) {
+    } else if (ua.indexOf("Chrome") !== -1 || ua.indexOf("CriOS") !== -1) {
         browser = "Chrome";
     } else if (ua.indexOf("Safari") !== -1) {
         browser = "Safari";
