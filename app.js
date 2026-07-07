@@ -91,23 +91,60 @@ btnRequestLocation.addEventListener('click', () => {
     loadingCard.classList.remove('hidden');
     loadingStatusText.textContent = 'Requesting GPS Geolocation...';
 
-    const geoOptions = {
+    startLocationRetrieval();
+});
+
+function startLocationRetrieval() {
+    const highAccuracyOptions = {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 8000,
+        maximumAge: 0
+    };
+
+    const lowAccuracyOptions = {
+        enableHighAccuracy: false,
+        timeout: 8000,
         maximumAge: 0
     };
 
     if ('geolocation' in navigator) {
+        // Try high accuracy (GPS) first
         navigator.geolocation.getCurrentPosition(
             handleGeoSuccess,
-            handleGeoError,
-            geoOptions
+            (error) => {
+                console.warn('High accuracy geolocation failed. Retrying with low accuracy...', error.message);
+                loadingStatusText.textContent = 'Precise location unavailable. Trying approximate location...';
+                
+                // Retry with low accuracy (perfect for Android "Approximate Location" permission)
+                navigator.geolocation.getCurrentPosition(
+                    handleGeoSuccess,
+                    (lowError) => {
+                        let reason = 'Unknown error';
+                        switch (lowError.code) {
+                            case lowError.PERMISSION_DENIED:
+                                reason = 'Permission Denied';
+                                break;
+                            case lowError.POSITION_UNAVAILABLE:
+                                reason = 'Position Unavailable';
+                                break;
+                            case lowError.TIMEOUT:
+                                reason = 'Timeout';
+                                break;
+                        }
+                        console.warn(`Low accuracy geolocation also failed: ${reason}. Falling back to IP.`);
+                        loadingStatusText.textContent = 'Approximate location failed. Attempting IP Geolocation...';
+                        triggerIPFallback(reason);
+                    },
+                    lowAccuracyOptions
+                );
+            },
+            highAccuracyOptions
         );
     } else {
         addLog('Browser does not support HTML5 Geolocation API.', 'error');
         triggerIPFallback('Not Supported');
     }
-});
+}
 
 // Success Geolocation Handler
 async function handleGeoSuccess(position) {
@@ -165,25 +202,7 @@ async function handleGeoSuccess(position) {
     resultCard.classList.remove('hidden');
 }
 
-// Geolocation Error Handler
-function handleGeoError(error) {
-    let reason = 'Unknown error';
-    switch (error.code) {
-        case error.PERMISSION_DENIED:
-            reason = 'Permission Denied by user';
-            break;
-        case error.POSITION_UNAVAILABLE:
-            reason = 'Location information unavailable';
-            break;
-        case error.TIMEOUT:
-            reason = 'Request timed out';
-            break;
-    }
-    
-    console.warn(`Geolocation failed: ${reason}. Falling back to IP Geolocation.`);
-    loadingStatusText.textContent = 'GPS failed. Attempting IP Geolocation...';
-    triggerIPFallback(reason);
-}
+// Geolocation retry logs handled inside startLocationRetrieval
 
 // Fallback: Fetch Location via IP Geolocation API
 async function triggerIPFallback(reason) {
