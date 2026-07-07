@@ -9,6 +9,7 @@ let gatheredData = {
     accuracy: null,
     method: '',
     provider: '',
+    ipAddress: '',
     isFallback: false,
     city: '',
     region: '',
@@ -38,6 +39,7 @@ const valAccuracy = document.getElementById('val-accuracy');
 const valMethod = document.getElementById('val-method');
 
 const fallbackInfo = document.getElementById('fallback-info');
+const ipAddressElement = document.getElementById('ip-address');
 const ipCity = document.getElementById('ip-city');
 const ipRegion = document.getElementById('ip-region');
 const ipCountry = document.getElementById('ip-country');
@@ -108,7 +110,7 @@ btnRequestLocation.addEventListener('click', () => {
 });
 
 // Success Geolocation Handler
-function handleGeoSuccess(position) {
+async function handleGeoSuccess(position) {
     const lat = position.coords.latitude;
     const lng = position.coords.longitude;
     const acc = position.coords.accuracy;
@@ -117,12 +119,8 @@ function handleGeoSuccess(position) {
     gatheredData.longitude = lng;
     gatheredData.accuracy = `${acc.toFixed(1)}m`;
     gatheredData.method = 'GPS / Browser API';
-    gatheredData.provider = 'Browser GPS';
     gatheredData.isFallback = false;
     gatheredData.timestamp = new Date().toISOString();
-
-    // Try to retrieve some details via reverse lookup or IP info (optional)
-    fetchIPDetailsQuietly();
 
     // Populate UI
     valLatitude.textContent = lat.toFixed(6);
@@ -133,6 +131,34 @@ function handleGeoSuccess(position) {
 
     // Set Map link (OpenStreetMap)
     mapLink.href = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=17/${lat}/${lng}`;
+
+    // Show Network details loading
+    fallbackInfo.classList.remove('hidden');
+    ipAddressElement.textContent = 'Loading...';
+    ipOrg.textContent = 'Loading...';
+    ipCity.textContent = 'Loading...';
+    ipRegion.textContent = 'Loading...';
+    ipCountry.textContent = 'Loading...';
+
+    // Await IP details lookup so we have the IP, city, region, country, and provider before showing results!
+    loadingStatusText.textContent = 'Retrieving network details (IP & ISP)...';
+    try {
+        await fetchIPDetails();
+    } catch (e) {
+        console.warn('Could not fetch network details:', e);
+        // Fallback placeholder values
+        gatheredData.ipAddress = 'Blocked/Failed';
+        gatheredData.provider = 'N/A';
+        gatheredData.city = 'N/A';
+        gatheredData.region = 'N/A';
+        gatheredData.country = 'N/A';
+
+        ipAddressElement.textContent = 'Blocked/Failed';
+        ipOrg.textContent = 'N/A';
+        ipCity.textContent = 'N/A';
+        ipRegion.textContent = 'N/A';
+        ipCountry.textContent = 'N/A';
+    }
 
     // Display Results
     loadingCard.classList.add('hidden');
@@ -160,74 +186,69 @@ function handleGeoError(error) {
 }
 
 // Fallback: Fetch Location via IP Geolocation API
-function triggerIPFallback(reason) {
+async function triggerIPFallback(reason) {
     gatheredData.isFallback = true;
     
-    // Using ipapi.co (Free, no key required for basic usage)
-    fetch('https://ipapi.co/json/')
-        .then(response => {
-            if (!response.ok) throw new Error('IP lookup failed');
-            return response.json();
-        })
-        .then(data => {
-            gatheredData.latitude = data.latitude;
-            gatheredData.longitude = data.longitude;
-            gatheredData.accuracy = '~10km (IP Estimate)';
-            gatheredData.method = `IP Fallback (${reason})`;
-            gatheredData.provider = data.org || 'N/A';
-            gatheredData.city = data.city || 'N/A';
-            gatheredData.region = data.region || 'N/A';
-            gatheredData.country = data.country_name || 'N/A';
-            gatheredData.timestamp = new Date().toISOString();
+    // Show Network details loading
+    fallbackInfo.classList.remove('hidden');
+    ipAddressElement.textContent = 'Loading...';
+    ipOrg.textContent = 'Loading...';
+    ipCity.textContent = 'Loading...';
+    ipRegion.textContent = 'Loading...';
+    ipCountry.textContent = 'Loading...';
 
-            // Populate UI
-            valLatitude.textContent = data.latitude ? data.latitude.toFixed(4) : 'N/A';
-            valLongitude.textContent = data.longitude ? data.longitude.toFixed(4) : 'N/A';
-            valAccuracy.textContent = '~10 km (IP-based)';
-            valMethod.textContent = `IP Fallback (${reason})`;
-            valMethod.className = 'telemetry-value highlight';
+    try {
+        const data = await fetchIPDetails();
+        
+        gatheredData.latitude = data.latitude;
+        gatheredData.longitude = data.longitude;
+        gatheredData.accuracy = '~10km (IP Estimate)';
+        gatheredData.method = `IP Fallback (${reason})`;
+        gatheredData.timestamp = new Date().toISOString();
 
-            // Set Fallback Details Card
-            ipCity.textContent = data.city || 'N/A';
-            ipRegion.textContent = data.region || 'N/A';
-            ipCountry.textContent = data.country_name || 'N/A';
-            ipOrg.textContent = data.org || 'N/A';
-            
-            fallbackInfo.classList.remove('hidden');
+        // Populate UI
+        valLatitude.textContent = data.latitude ? data.latitude.toFixed(4) : 'N/A';
+        valLongitude.textContent = data.longitude ? data.longitude.toFixed(4) : 'N/A';
+        valAccuracy.textContent = '~10 km (IP-based)';
+        valMethod.textContent = `IP Fallback (${reason})`;
+        valMethod.className = 'telemetry-value highlight';
 
-            // Set Map link
-            if (data.latitude && data.longitude) {
-                mapLink.href = `https://www.openstreetmap.org/?mlat=${data.latitude}&mlon=${data.longitude}#map=12/${data.latitude}/${data.longitude}`;
-            }
+        // Set Map link
+        if (data.latitude && data.longitude) {
+            mapLink.href = `https://www.openstreetmap.org/?mlat=${data.latitude}&mlon=${data.longitude}#map=12/${data.latitude}/${data.longitude}`;
+        }
 
-            loadingCard.classList.add('hidden');
-            resultCard.classList.remove('hidden');
-        })
-        .catch(err => {
-            console.error('IP Fallback lookup also failed:', err);
-            
-            // Show error message
-            alert(`Unable to get your location. GPS failed (${reason}) and IP Fallback failed. Please check permissions.`);
-            
-            // Reset to step 1
-            loadingCard.classList.add('hidden');
-            inputCard.classList.remove('hidden');
-        });
+        loadingCard.classList.add('hidden');
+        resultCard.classList.remove('hidden');
+    } catch (err) {
+        console.error('IP Fallback lookup also failed:', err);
+        alert(`Unable to get your location. GPS failed (${reason}) and IP Fallback failed. Please check permissions.`);
+        loadingCard.classList.add('hidden');
+        inputCard.classList.remove('hidden');
+    }
 }
 
-// Optional helper to get approximate city details even if GPS succeeds
-function fetchIPDetailsQuietly() {
-    fetch('https://ipapi.co/json/')
-        .then(response => response.json())
-        .then(data => {
-            gatheredData.city = data.city || '';
-            gatheredData.region = data.region || '';
-            gatheredData.country = data.country_name || '';
-            gatheredData.provider = data.org || 'Browser GPS';
-        })
-        .catch(() => {
-            // Silently ignore failures on background info
-        });
+// Unified helper to get IP & location info
+async function fetchIPDetails() {
+    const response = await fetch('https://ipapi.co/json/');
+    if (!response.ok) throw new Error('IP lookup failed');
+    const data = await response.json();
+    
+    // Update global state
+    gatheredData.ipAddress = data.ip || 'N/A';
+    gatheredData.city = data.city || 'N/A';
+    gatheredData.region = data.region || 'N/A';
+    gatheredData.country = data.country_name || 'N/A';
+    gatheredData.provider = data.org || 'N/A';
+
+    // Update UI elements
+    ipAddressElement.textContent = data.ip || 'N/A';
+    ipOrg.textContent = data.org || 'N/A';
+    ipCity.textContent = data.city || 'N/A';
+    ipRegion.textContent = data.region || 'N/A';
+    ipCountry.textContent = data.country_name || 'N/A';
+
+    return data;
 }
 
 // Download gathered data as JSON file
@@ -311,6 +332,7 @@ btnReset.addEventListener('click', () => {
         accuracy: null,
         method: '',
         provider: '',
+        ipAddress: '',
         isFallback: false,
         city: '',
         region: '',
