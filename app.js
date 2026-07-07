@@ -13,6 +13,8 @@ let gatheredData = {
     city: '',
     region: '',
     country: '',
+    browser: '',
+    os: '',
     userAgent: '',
     timestamp: ''
 };
@@ -75,6 +77,11 @@ btnRequestLocation.addEventListener('click', () => {
     }
 
     gatheredData.name = name;
+    
+    // Parse browser and OS details
+    const uaInfo = getBrowserAndOS();
+    gatheredData.browser = uaInfo.browser;
+    gatheredData.os = uaInfo.os;
     gatheredData.userAgent = navigator.userAgent;
     
     // Transition UI to Loading
@@ -308,7 +315,40 @@ btnReset.addEventListener('click', () => {
         city: '',
         region: '',
         country: '',
+        browser: '',
+        os: '',
         userAgent: '',
         timestamp: ''
     };
 });
+
+// Helper: Parse friendly Browser and OS from User Agent
+function getBrowserAndOS() {
+    const ua = navigator.userAgent;
+    let browser = "Unknown Browser";
+    let os = "Unknown OS";
+
+    // Detect OS
+    if (ua.indexOf("Win") !== -1) os = "Windows";
+    else if (ua.indexOf("Mac") !== -1 && ua.indexOf("iPhone") === -1 && ua.indexOf("iPad") === -1 && ua.indexOf("iPod") === -1) os = "macOS";
+    else if (ua.indexOf("iPhone") !== -1 || ua.indexOf("iPad") !== -1 || ua.indexOf("iPod") !== -1) os = "iOS";
+    else if (ua.indexOf("Android") !== -1) os = "Android";
+    else if (ua.indexOf("Linux") !== -1) os = "Linux";
+
+    // Detect Browser
+    if (ua.indexOf("Firefox") !== -1) {
+        browser = "Firefox";
+    } else if (ua.indexOf("Opera") !== -1 || ua.indexOf("OPR") !== -1) {
+        browser = "Opera";
+    } else if (ua.indexOf("Edge") !== -1 || ua.indexOf("Edg") !== -1) {
+        browser = "Edge";
+    } else if (ua.indexOf("Chrome") !== -1) {
+        browser = "Chrome";
+    } else if (ua.indexOf("Safari") !== -1) {
+        browser = "Safari";
+    } else if (ua.indexOf("MSIE") !== -1 || !!document.documentMode === true) {
+        browser = "Internet Explorer";
+    }
+
+    return { browser, os };
+}
